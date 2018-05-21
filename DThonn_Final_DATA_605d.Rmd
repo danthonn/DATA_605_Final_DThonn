@@ -1,0 +1,590 @@
+---
+title: "DATA_605_Final_DThonn"
+file: DATA_605_Final_DThonn
+name: Daniel Thonn
+output:
+  html_document: default
+  pdf_document: default
+course: DATA 605 CUNY MSDA program
+---
+
+** DATA_605 Final Exam - Computational Mathematics - Spring 2018 **
+
+http://rpubs.com/danthonn/390789
+
+```{r setup, include=FALSE}
+
+chooseCRANmirror(graphics=FALSE, ind=1)
+knitr::opts_chunk$set(echo = TRUE)
+
+#dir.create("C:/Rtmp")
+#cat("TMPDIR = C:/Rtmp", file = "~/.Renviron", sep = "\n", append = TRUE)
+
+```
+
+``````{r, echo=TRUE}
+
+if (!require(stats)) install.packages("stats")
+library(stats)
+
+if (!require(pracma)) install.packages("pracma")
+library(pracma)
+
+if (!require(Deriv)) install.packages("Deriv")
+library(Deriv)
+
+if (!require(knitr)) install.packages("knitr")
+library(knitr)
+
+if (!require(DT)) install.packages("DT")
+library(DT)
+
+if (!require(MASS)) install.packages("MASS")
+library(MASS)
+
+if (!require(reshape)) install.packages("reshape")
+library(reshape)
+
+if (!require(ggplot2)) install.packages("ggplot2")
+library(ggplot2)
+
+if (!require(dplyr)) install.packages("dplyr")
+library(dplyr)
+
+if (!require(tidyr)) install.packages("tidyr")
+library(tidyr)
+
+if (!require(pastecs)) install.packages("pastecs")
+library(pastecs)
+
+if (!require(psych)) install.packages("psych")
+library(psych)
+
+if (!require(purrr)) install.packages("purrr")
+library(psych)
+
+if (!require(corrplot)) install.packages("corrplot")
+library(corrplot)
+
+if (!require(Matrix)) install.packages("Matrix")
+library(Matrix)
+
+if (!require(Rmisc)) install.packages("Rmisc")
+library(Rmisc)
+
+```
+
+
+Final Exam:
+
+You are to register for Kaggle.com (free) and compete in the House Prices: Advanced Regression Techniques competition. https://www.kaggle.com/c/house-prices-advanced-regression-techniques . I want you to do the following.
+
+
+** Data **
+
+* Pick one of the quantitative independent variables from the training data set (train.csv) , and define that variable as X. Make sure this variable is skewed to the right!
+* Pick the dependent variable and define it as Y.
+
+
+
+``````{r, echo=TRUE}
+
+
+url <- 'https://raw.githubusercontent.com/danthonn/DATA_605_Final_DThonn/master/train.csv'
+
+
+train1 <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
+#head(train1)
+glimpse(train1)
+
+# independent variable
+X <- train1$GrLivArea
+head(X)
+
+# dependent variable
+Y <- train1$SalePrice
+head(Y)
+
+plot(X,Y, col="#4caf50", main="Scatterplot GrLivArea and Sale Price", xlab = "Gr Liv Area", ylab="Sale Price")
+abline(lm(Y~X), col="red", lwd=3) # regression line (y~x) 
+
+
+
+
+```
+
+
+``````{r, echo=TRUE}
+# Histograms and summaries of X (GrLivArea) and Y (Sales Price)
+
+# GrLivArea - X
+hist(X, col="yellow", main="Histogram - GrLivArea", xlab = "GrLivArea")
+
+# Summary of x - GrLivArea
+summary(X)
+
+# Sale Price
+hist(Y, col="blue", main="Histogram - Sale Price", xlab = "Sale Price")
+
+# Summary of y - Sale Price
+summary(Y)
+
+
+```
+
+** Probability **
+
+Calculate as a minimum the below probabilities a through c. Assume the small letter "x" is estimated as the 1st quartile of the X variable, and the small letter "y" is estimated as the 1st quartile of the Y variable. Interpret the meaning of all probabilities. In addition, make a table of counts as shown below.
+
+
+a. P(X>x | Y>y) b. P(X>x, Y>y) c. P(X<x | Y>y)
+x/y
+
+$$a. P(X > x | Y > y)$$
+
+``````{r, echo=TRUE}
+ #1st quartile of X variable
+x<-quantile(X, probs=0.25) 
+x2<-quantile(X, probs=0.50)
+x
+# 25% 
+# 1129.5 
+
+#1st quartile of Y variable
+y<-quantile(Y, probs=0.25)
+y3<-quantile(Y, probs=0.75)
+y
+#    25% 
+# 129975 
+
+# number of rows of train1 data set (train.csv)
+num_len<-(nrow(train1))
+num_len
+
+# data for train1$GrLivArea
+gr_liv_area<-as.numeric(train1$GrLivArea)
+# data for train1$SalePrice
+sale_price<-as.numeric(train1$SalePrice)
+
+# rows where sale_price > 1st quartile of Y
+n_Yqt1<-nrow(subset(train1,sale_price>y))
+n_Yqt1
+
+# the probability that P(X>x|Y>y)
+pa<-nrow(subset(train1, gr_liv_area > x & sale_price> y))/n_Yqt1
+pa
+#Answer-a:
+# [1] 0.8712329
+
+```
+
+
+
+
+$$b. P(X > x , Y > y)$$ 
+
+``````{r, echo=TRUE}
+
+pb<-nrow(subset(train1, gr_liv_area > x & sale_price> y))/num_len
+pb
+# Answer-b:
+# [1] 0.6534247
+
+
+```
+
+
+
+
+$$c. P(X < x | Y > y)$$
+
+
+``````{r, echo=TRUE}
+pc <-nrow(subset(train1, gr_liv_area < x & sale_price> y))/n_Yqt1
+pc
+#Answer-c:
+# [1] 0.1287671
+
+```
+
+** Probability - Check Independence **
+
+Does splitting the training data in this fashion make them independent? Let A be the new variable counting those observations above the 1st quartile for X, and let B be the new variable counting those observations above the 1st quartile for Y. Does P(AB)=P(A)P(B)? Check mathematically, and then evaluate by running a Chi Square test for association.
+
+
+``````{r, echo=TRUE}
+# check independance
+subof_x <- subset(train1 , !is.na(gr_liv_area) & (gr_liv_area > x))
+subof_y <- subset(train1 , !is.na(sale_price) & sale_price > y)
+subof_xy <- subset(train1 , !is.na(gr_liv_area | sale_price) &(gr_liv_area < x & sale_price > y) )
+
+pa <- nrow(subof_x)/nrow(train1)
+pb <- nrow(subof_y)/nrow(train1)
+pab <- nrow(subof_xy)/nrow(train1)
+
+pab == pa*pb
+# [1] FALSE
+# Conclusion: splitting the date in this fashion does not make them independent
+
+```
+
+** Probability - Table of Counts **
+
+``````{r, echo=TRUE}
+col1<-nrow(subset(train1, gr_liv_area <=x2 & sale_price<=y3))/num_len
+col2<-nrow(subset(train1, gr_liv_area <=x2 & sale_price>y3))/num_len
+col3<-nrow(subset(train1, gr_liv_area >x2 & sale_price<=y3))/num_len
+col4<-nrow(subset(train1, gr_liv_area >x2 & sale_price>y3))/num_len
+
+counts<-matrix(round(c(col1,col2,col3,col4),3), ncol=2, nrow=2, byrow=TRUE)
+colnames(counts)<-c(
+"<=2 quartile",
+">2 quartile")
+rownames(counts)<-c("<=3rd quartile",">3rd quartile")
+
+print("Table of Counts")
+## [1] "Table of Counts"
+
+counts<-as.table(counts)
+addmargins(counts)
+
+```
+
+** Probability - Chi Square Test **
+
+``````{r, echo=TRUE}
+
+# Chi Square Test
+(chi_table <- table(X > x, Y > y))
+
+prop.table(chi_table)
+
+(chi_results <- chisq.test(chi_table))
+
+# Pearson's Chi-squared test with Yates' continuity correction
+# 
+# data:  chi_table
+# X-squared = 340.75, df = 1, p-value < 2.2e-16
+
+# As the p-value 2.2e-16 is less than the .05 significance level, the null hypothesis is rejected and the conclusion is that the SalePrice of the GrLivArea are dependent.
+
+```
+
+
+** Statistics - Descriptive and Inferential - Plots **
+
+Provide univariate descriptive statistics and appropriate plots for the training data set. Provide a scatterplot of X and Y. Derive a correlation matrix for any THREE quantitative variables in the dataset. Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide a 92% confidence interval. Discuss the meaning of your analysis. Would you be worried about familywise error? Why or why not?
+
+
+``````{r, echo=TRUE}
+
+
+
+XY <- cbind(X, Y)
+
+# Descriptive Statistics
+options(scipen = 999)
+kable(t(round(describe(XY, quant = c(0.25, 0.75)), 2)))
+
+# Prepare data frame for plotting 
+XY_df1 <- data.frame(XY)
+
+# Provide a scatterplot of X and Y 
+z <- ggplot(XY_df1, aes(X, Y))
+z + geom_point()
+
+# X 
+hist(XY_df1$X, freq = FALSE, breaks = 25, main = "Variable X")
+xfx <- seq(min(XY_df1$X), max(XY_df1$X), by = 1)
+yfx <- dnorm(xfx, mean(XY_df1$X), sd(XY_df1$X))
+lines(xfx, yfx)
+
+# Y 
+hist(XY_df1$Y, freq = FALSE, breaks = 30, main = "Variable Y")
+xfy <- seq(min(XY_df1$Y), max(XY_df1$Y), by = 10)
+yfy <- dnorm(xfy, mean(XY_df1$Y), sd(XY_df1$Y))
+lines(xfy, yfy)
+
+XYmod1 <- lm(Y ~ X, data = XY_df1)
+
+# plot the XYmod1
+plot(XYmod1, which = 2)
+
+# plot the residuals
+sresid <- studres(XYmod1)
+hist(sresid, freq = FALSE, breaks = 25, main = "Distribution of Residuals")
+xfs <- seq(min(sresid), max(sresid), length = 50)
+yfs <- dnorm(xfs)
+lines(xfs, yfs)
+
+
+
+```
+
+** Statistics - Descriptive and Inferential - Correlation Matrices **
+
+Derive a correlation matrix for any THREE quantitative variables in the dataset. Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide a 92% confidence interval. Discuss the meaning of your analysis. Would you be worried about familywise error? Why or why not?
+
+
+``````{r, echo=TRUE}
+# Check Correlations 
+
+#head(train1)
+colnames(train1)
+
+# Select columns of housing data to check for correlation
+corr_set <- select(train1, LotArea, GrLivArea, YearBuilt, SalePrice)
+
+corr_mat <- cor(corr_set)
+corrplot(corr_mat, method="square")
+
+# The highest correlation is GrLivArea vs SalePrice
+
+# Check the t.test at a 92% confidence level
+t.test(train1$GrLivArea, train1$SalePrice,conf.level = 0.92)
+
+# Welch Two Sample t-test
+# 
+# data:  train1$GrLivArea and train1$SalePrice
+# t = -86.288, df = 1459.1, p-value < 0.00000000000000022
+# alternative hypothesis: true difference in means is not equal to 0
+# 92 percent confidence interval:
+#  -183048.2 -175763.3
+# sample estimates:
+#  mean of x  mean of y 
+#   1515.464 180921.196 
+
+# Conlusion:
+# The two variables above show a p-value (< 0.5) which means we can reject the null hypothesis. 
+# The sales price of a home can be correlated in part to GrLivArea.
+
+
+# Check the pearson correlation test to determine if the correlation is 0 with a 92% CI.
+cor.test(train1$GrLivArea, train1$SalePrice, method = "pearson" , conf.level = 0.92)
+
+# Pearson's product-moment correlation
+# 
+# data:  train1$GrLivArea and train1$SalePrice
+# t = 38.348, df = 1458, p-value < 0.00000000000000022
+# alternative hypothesis: true correlation is not equal to 0
+# 92 percent confidence interval:
+#  0.6850407 0.7307245
+# sample estimates:
+#       cor 
+# 0.7086245 
+
+# Conclusion:
+# This test indicates that there is correlation as the p-value is < 0.5.  The cor value is 0.708 which is good.
+
+# Family wise error:
+# Family-wise error rate (FWER) is the probability of making one or more false discoveries, or type I errors when performing multiple hypotheses tests.
+# Conclusion: I don't believe family wise error is applicable to this analysis with two tests.  The Pearson product indicates correlation is not equal to zero.  With only these two tests I believe the family wise error risk is low. 
+
+
+```
+
+
+
+** Linear Algebra and Correlation **
+
+Invert your 3 x 3 correlation matrix from above. (This is known as the precision matrix and contains variance inflation factors on the diagonal.) Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. Conduct LU decomposition on the matrix.
+
+
+``````{r, echo=TRUE}
+
+# Show 3x3 matrix from correlation section above 
+head(corr_mat)
+
+# Solve the correlation matrix to get the precision matrix
+corr_pre<-solve(corr_mat)
+head(corr_pre)
+
+# Multiply the correlation matrix by the precision matrix
+corr_mat %*% corr_pre
+
+# Multply the precision matrix by the correlation matrix
+corr_pre %*% corr_mat
+
+# Conduct LU decomposition on the precision matrix
+lu_decomp_pre <- lu(corr_pre)
+ex_lu_pre <- expand(lu_decomp_pre)
+
+# Lower decomposition - precision
+ex_lu_pre$L
+
+#Upper decomposition - precision
+ex_lu_pre$U
+
+# Conduct LU decomposition on the correlation matrix
+lu_corr <- lu(corr_mat)
+ex_lu_corr <- expand(lu_corr)
+
+# Lower decomposition - correlation
+ex_lu_corr$L
+
+#Upper decomposition - correlation
+ex_lu_corr$U
+
+
+```
+
+
+** Calculus-Based Probability & Statistics **
+
+Many times, it makes sense to fit a closed form distribution to data. For the first variable that you selected which is skewed to the right, shift it so that the minimum value is above zero as necessary. Then load the MASS package and run fitdistr to fit an exponential probability density function. (See https://stat.ethz.ch/R-manual/R-
+devel/library/MASS/html/fitdistr.html ). Find the optimal value of lambda for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, lambda)). Plot a histogram and compare it with a histogram of your original variable. Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF). Also generate a 95% confidence interval from the empirical data, assuming normality. Finally, provide the empirical 5th percentile and 95th percentile of the data. Discuss.
+
+``````{r, echo=TRUE}
+
+# Note: X <- train1$GrLivArea
+
+# Check that min val is not 0
+min(train1$GrLivArea)
+# [1] 334
+
+
+# Check the fit distribution
+set.seed(4)
+X_fit1 <- fitdistr(X, "exponential")
+
+lambda <- X_fit1$estimate
+lambda
+
+# Histogram of function
+hist(X, breaks = 30)
+
+# Check and compare with exponential distribution
+rand_sample1 <- rexp(1000, X_fit1$estimate[[1]])
+hist(rand_sample1, breaks = 30)
+
+# Conclusion: 
+# the fit distribution is a right skewed distibution.
+# the exponential distribution follows a similar shape after the peak.  The peak is higher.
+
+```
+
+
+
+``````{r, echo=TRUE}
+# Analyze the Cumulative Distribution Functions:
+
+# Calulate the CDF for 5% and 95% for model
+CDF5 <- log(1 - .05)/-lambda
+CDF5
+#     rate 
+# 77.73313 
+
+CDF95 <- log(1 - .95)/-lambda
+CDF95
+#     rate 
+# 4539.924
+
+# Check the quantiles 5% and 95% of data
+quantile(train1$GrLivArea, 0.05)
+#  5% 
+# 848
+quantile(train1$GrLivArea, 0.95)
+#    95% 
+# 2466.1 
+
+# Calculate Confidence Intervals of data
+CI(train1$GrLivArea, 0.95)
+#    upper     mean    lower 
+# 1542.440 1515.464 1488.487 
+
+# Conclusion:
+# CDF-Model (.o5,.95) = 77.7 to 4539
+# Quantiles-Data (.05,.95) = 848 to 2466.1
+# CI-Data mean = 1515
+# The Model is ranging from 77.7 to 4539 for (.05,.95)
+# The Data is ranging from 848 to 2466.1 for (.05,.95)
+# Therefore the Model is not a good fit for the data as it encompasses a much wider data set
+
+```
+
+
+
+** Modeling **
+
+Build some type of multiple regression model and submit your model to the competition board. Provide your complete model summary and results with analysis. Report your Kaggle.com user name and score.
+
+``````{r, echo=TRUE}
+
+# Create a model with 4 variables (OverallQual,GrLivArea,LotArea,YearBuilt) versus SalePrice
+model1 <- lm(train1$SalePrice ~ train1$OverallQual + train1$GrLivArea + train1$LotArea + train1$YearBuilt, data=train1)
+summary(model1)
+
+par(mfrow=c(2,2))
+a1<-train1$OverallQual
+a2<-train1$GrLivArea
+a3<-train1$LotArea
+a4<-train1$YearBuilt
+b<-train1$SalePrice
+
+# Plot the input variables
+plot(a1,b, col="chocolate", main="OverallQual", ylab="Sale Price")
+abline(lm(b~a1), col="green", lwd=3) # regression line (y~x)
+
+plot(a2,b, col="blue", main="GrLivArea", ylab="Sale Price")
+abline(lm(b~a2), col="green", lwd=3) # regression line (y~x)
+
+plot(a3,b, col="black", main="LotArea", ylab="Sale Price")
+abline(lm(b~a3), col="green", lwd=3) # regression line (y~x)
+
+plot(a4,b, col="darkmagenta", main="YearBuilt", ylab="Sale Price")
+abline(lm(b~a4), col="green", lwd=3) # regression line (y~x)
+
+# Load test data, create calculated column using equation for multiple linear regression. Select required columns and export to csv for contest entry.
+
+test1 <- read.csv('https://raw.githubusercontent.com/danthonn/DATA_605_Final_DThonn/master/test.csv')
+
+# Model Equation
+SalePrice<-((25687.0280*test1$OverallQual) + (56.7259*test1$GrLivArea) +  (0.9160*test1$LotArea) + (501.4827*test1$YearBuilt) -1059908.4170)
+
+# Cleanup test data
+test2 <- select_if(test1, is.numeric)
+test2[is.na(test2)] <- 0
+
+# Run a prediction
+predict1<-predict(model1,test2)
+
+str(predict1)
+
+test3<-test2[,c("Id","OverallQual","GrLivArea","LotArea","YearBuilt")]
+head(test3)
+
+# Preparation for Kaggle submission
+submission_dt1 <- as.data.frame(cbind(test3$Id, predict1))
+colnames(submission_dt1) <- c("Id", "SalePrice")
+submission_dt2<-as.data.frame(submission_dt1[1:1459,])
+#head(submission_dt1)
+#str(submission_dt1)
+
+write.csv(submission_dt2, file = 'C:/Users/Dan/Documents/GitHub/DATA_605_Final_DThonn/submission_dt2.csv', quote=FALSE, row.names=FALSE)
+
+#knitr::include_graphics('https://raw.githubusercontent.com/danthonn/DATA_605_Final_DThonn/master/Kaggle_Score_submission_dt2_Dthonn.PNG')
+
+
+# Analysis and Conclusion:
+# The top four attributes were selected with higher correlations.
+# The linear regression model was used to predict the score.
+# Kaggle.com user name: dtseattle
+# Kaggle.com user score: 0.74802
+# Pr values of attributes are significant as they are less than .05.
+# Adjusted R squared value shows significant correlation at .749.
+
+
+
+```
+
+
+** END **
+
+
+``````{r, echo=TRUE}
+
+
+```
+
+
+
