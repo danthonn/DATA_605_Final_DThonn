@@ -534,7 +534,7 @@ abline(lm(b~a3), col="green", lwd=3) # regression line (y~x)
 plot(a4,b, col="darkmagenta", main="YearBuilt", ylab="Sale Price")
 abline(lm(b~a4), col="green", lwd=3) # regression line (y~x)
 
-# Load test data, create calculated column using equation for multiple linear regression. Select required columns and export to csv for contest entry.
+# Load test data
 
 test1 <- read.csv('https://raw.githubusercontent.com/danthonn/DATA_605_Final_DThonn/master/test.csv')
 
